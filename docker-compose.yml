@@ -1,0 +1,75 @@
+version: '3.7'
+
+services:
+  ipfs:
+    container_name: ipfs
+    hostname: ipfs
+    image: ipfs/go-ipfs
+    ports:
+      - '8080:8080'
+      - '4001:4001'
+      - '4001:4001/udp'
+      - '5001:5001'
+    volumes:
+      - $HOME/.ipfs:/data/ipfs
+      - $HOME/.ipfs_staging:/staging
+    restart: always
+    networks:
+      - graph-network
+
+  postgres:
+    image: postgres
+    container_name: postgres
+    ports:
+      - '5432:5432'
+    restart: always
+    command:
+      [
+        "postgres",
+        "-cshared_preload_libraries=pg_stat_statements"
+      ]
+    environment:
+      POSTGRES_PASSWORD: 7FDU0N3OWTIO
+      POSTGRES_USER: graph-node
+      POSTGRES_DB: graph-node
+      PGDATA: /postgresql/data
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - postgres-db:/postgresql/data
+    networks:
+      - graph-network
+
+  graph-node:
+    image: graphprotocol/graph-node:latest
+    container_name: graph-node
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+      - '8030:8030'
+      - '8040:8040'
+    restart: always
+    volumes:
+      - $HOME/.michael/el:/el
+    environment:
+      ethereum-ipc: 'michael:/el/geth.ipc'
+      ethereum-rpc: 'michael:http://localhost:8545'
+      ethereum-ws: 'michael:http://localhost:8546'
+      ipfs: 'ipfs:5001'
+      postgres_host: postgres
+      postgres_user: graph-node
+      postgres_pass: 7FDU0N3OWTIO
+      postgres_db: graph-node
+      GRAPH_LOG: info
+    networks:
+      - graph-network
+    depends_on:
+      - ipfs
+      - postgres
+
+networks:
+  graph-network:
+    driver: bridge
+
+volumes:
+  postgres-db:
